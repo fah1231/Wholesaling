@@ -1,0 +1,296 @@
+import React, { useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { CSVLink } from "react-csv";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import "leaflet/dist/leaflet.css";
+
+const mockProperties = [
+  {
+    id: 1,
+    address: "123 Main St, Dallas, TX",
+    equity: "35%",
+    vacant: "Yes",
+    ownerType: "Homeowner",
+    foreclosureStage: "Pre-Foreclosure",
+    lienStatus: "Active",
+    corporateOwned: "No",
+    contact: "john.doe@email.com",
+    lat: 32.7767,
+    lng: -96.7970,
+  },
+  {
+    id: 2,
+    address: "45 Sunset Blvd, Austin, TX",
+    equity: "20%",
+    vacant: "No",
+    ownerType: "LLC",
+    foreclosureStage: "Auction",
+    lienStatus: "Cleared",
+    corporateOwned: "Yes",
+    contact: "info@sunsetinvestors.com",
+    lat: 30.2672,
+    lng: -97.7431,
+  },
+  {
+    id: 3,
+    address: "789 Oak Ln, Houston, TX",
+    equity: "50%",
+    vacant: "Yes",
+    ownerType: "Homeowner",
+    foreclosureStage: "Bank-Owned",
+    lienStatus: "Active",
+    corporateOwned: "No",
+    contact: "marysmith@email.com",
+    lat: 29.7604,
+    lng: -95.3698,
+  },
+];
+
+function App() {
+  const [filters, setFilters] = useState({
+    location: "",
+    equity: "",
+    vacant: "",
+    ownerType: "",
+    foreclosureStage: "",
+    lienStatus: "",
+    corporateOwned: "",
+  });
+
+  const [filteredProperties, setFilteredProperties] = useState(mockProperties);
+
+  const handleChange = (e) => {
+    setFilters({ ...filters, [e.target.name]: e.target.value });
+  };
+
+  const handleSearch = () => {
+    let result = mockProperties;
+
+    if (filters.location)
+      result = result.filter((p) =>
+        p.address.toLowerCase().includes(filters.location.toLowerCase())
+      );
+    if (filters.equity)
+      result = result.filter((p) =>
+        p.equity.replace("%", "") >= parseInt(filters.equity)
+      );
+    if (filters.vacant)
+      result = result.filter((p) => p.vacant === filters.vacant);
+    if (filters.ownerType)
+      result = result.filter((p) => p.ownerType === filters.ownerType);
+    if (filters.foreclosureStage)
+      result = result.filter(
+        (p) => p.foreclosureStage === filters.foreclosureStage
+      );
+    if (filters.lienStatus)
+      result = result.filter((p) => p.lienStatus === filters.lienStatus);
+    if (filters.corporateOwned)
+      result = result.filter((p) => p.corporateOwned === filters.corporateOwned);
+
+    setFilteredProperties(result);
+  };
+
+  const handlePDF = () => {
+    const doc = new jsPDF();
+    doc.text("Wholesaling101 Property Report", 14, 16);
+    const tableData = filteredProperties.map((p) => [
+      p.address,
+      p.equity,
+      p.vacant,
+      p.ownerType,
+      p.foreclosureStage,
+      p.lienStatus,
+      p.corporateOwned,
+      p.contact,
+    ]);
+    doc.autoTable({
+      head: [
+        [
+          "Address",
+          "Equity",
+          "Vacant",
+          "Owner Type",
+          "Stage",
+          "Lien",
+          "Corporate",
+          "Contact",
+        ],
+      ],
+      body: tableData,
+      startY: 22,
+    });
+    doc.save("Wholesaling101_Properties.pdf");
+  };
+
+  return (
+    <div className="flex flex-col p-4 space-y-6 bg-gray-50 min-h-screen">
+      <h1 className="text-3xl font-bold text-center text-blue-700">
+        🏠 Wholesaling101 Property Finder
+      </h1>
+
+      {/* Filters */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <input
+          type="text"
+          name="location"
+          placeholder="Search by location"
+          className="border p-2 rounded"
+          onChange={handleChange}
+        />
+        <input
+          type="number"
+          name="equity"
+          placeholder="Min Equity %"
+          className="border p-2 rounded"
+          onChange={handleChange}
+        />
+        <select
+          name="vacant"
+          className="border p-2 rounded"
+          onChange={handleChange}
+        >
+          <option value="">Vacant?</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+        <select
+          name="ownerType"
+          className="border p-2 rounded"
+          onChange={handleChange}
+        >
+          <option value="">Owner Type</option>
+          <option value="Homeowner">Homeowner</option>
+          <option value="LLC">LLC</option>
+        </select>
+        <select
+          name="foreclosureStage"
+          className="border p-2 rounded"
+          onChange={handleChange}
+        >
+          <option value="">Foreclosure Stage</option>
+          <option value="Pre-Foreclosure">Pre-Foreclosure</option>
+          <option value="Auction">Auction</option>
+          <option value="Bank-Owned">Bank-Owned</option>
+        </select>
+        <select
+          name="lienStatus"
+          className="border p-2 rounded"
+          onChange={handleChange}
+        >
+          <option value="">Lien Status</option>
+          <option value="Active">Active</option>
+          <option value="Cleared">Cleared</option>
+        </select>
+        <select
+          name="corporateOwned"
+          className="border p-2 rounded"
+          onChange={handleChange}
+        >
+          <option value="">Corporate Owned?</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+
+        <button
+          onClick={handleSearch}
+          className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+        >
+          Search
+        </button>
+      </div>
+
+      {/* Map */}
+      <div className="h-96 rounded-lg overflow-hidden shadow">
+        <MapContainer
+          center={[31.9686, -99.9018]}
+          zoom={6}
+          className="h-full w-full"
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          {filteredProperties.map((property) => (
+            <Marker
+              key={property.id}
+              position={[property.lat, property.lng]}
+            >
+              <Popup>
+                <strong>{property.address}</strong>
+                <br />
+                Equity: {property.equity} <br />
+                Vacant: {property.vacant} <br />
+                Owner: {property.ownerType} <br />
+                Stage: {property.foreclosureStage} <br />
+                Lien: {property.lienStatus} <br />
+                Corporate: {property.corporateOwned} <br />
+                Contact: {property.contact}
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+      </div>
+
+      {/* Table + Export */}
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div className="flex justify-between mb-3">
+          <h2 className="text-xl font-semibold">Property List</h2>
+          <div className="flex space-x-2">
+            <CSVLink
+              filename="Wholesaling101_Properties.csv"
+              data={filteredProperties}
+              className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+            >
+              Export CSV
+            </CSVLink>
+            <button
+              onClick={handlePDF}
+              className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+            >
+              Export PDF
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700"
+            >
+              Print
+            </button>
+          </div>
+        </div>
+
+        <table className="w-full border text-sm">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="p-2 border">Address</th>
+              <th className="p-2 border">Equity</th>
+              <th className="p-2 border">Vacant</th>
+              <th className="p-2 border">Owner Type</th>
+              <th className="p-2 border">Stage</th>
+              <th className="p-2 border">Lien</th>
+              <th className="p-2 border">Corporate</th>
+              <th className="p-2 border">Contact</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredProperties.map((property) => (
+              <tr key={property.id} className="text-center">
+                <td className="p-2 border">{property.address}</td>
+                <td className="p-2 border">{property.equity}</td>
+                <td className="p-2 border">{property.vacant}</td>
+                <td className="p-2 border">{property.ownerType}</td>
+                <td className="p-2 border">{property.foreclosureStage}</td>
+                <td className="p-2 border">{property.lienStatus}</td>
+                <td className="p-2 border">{property.corporateOwned}</td>
+                <td className="p-2 border">{property.contact}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+
